@@ -1,3 +1,4 @@
+import functools
 import os
 import subprocess
 import pystray
@@ -43,7 +44,7 @@ class Tray:
         self.current_state_of_config_file = self.is_config
 
     @property
-    def menu2(self):
+    def menu_old_no_loop(self):
         sections = self.config_checker.get_all_section_names()
         return pystray.Menu(
             # pystray.MenuItem("Mount SMB", lambda Icon, item: Icon.notify(self.my_smb.mount_smb()),
@@ -90,32 +91,68 @@ class Tray:
 
     @property
     def menu(self):
-        sections = self.config_checker.get_all_section_names()
+        all_section_names = self.config_checker.get_all_section_names()
+
+        # TODO: menu won't show if no shares in conf file. Print warning when app starts if none.
+        # Create menu items for each section
+        menu_items = []
+        for section_name in all_section_names:
+            shares = self.config_checker.get_shares_for_section(section_name)
+            section_menu_items = [self.create_menu_item(section_name, i) for i in range(len(shares))]
+            section_menu = pystray.Menu(*section_menu_items)
+            menu_items.append(pystray.MenuItem(section_name, section_menu))
+
         return pystray.Menu(
             pystray.MenuItem("Unmount All SMB", lambda Icon, item: Icon.notify(self.my_smb.unmount_all_smb()),
                              enabled=self.is_config),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem(sections[0], pystray.Menu(
-                pystray.MenuItem(f"Mount {self.config_checker.get_shares_for_section(sections[0])[0]}", lambda Icon, item: Icon.notify(
-                    # self.my_smb.mount_smb(self.config_checker.get_username_for_section(sections[0]),
-                    #                       self.config_checker.get_password_for_section(sections[0]),
-                    #                       self.config_checker.get_shares_for_section(sections[0])[0]
-                    #                       )
-                    self.my_smb.mount_smb_section(sections[0], 0)
-                )),
-                pystray.MenuItem(f"Mount {self.config_checker.get_shares_for_section(sections[0])[1]}",
-                                 lambda Icon, item: Icon.notify(
-                                     self.my_smb.mount_smb_section(sections[0], 1)
-                                 ))
-            )),
+            *menu_items,
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Other", pystray.Menu(
                 pystray.MenuItem("Edit config file", self.edit_config_file_and_reload)
-            )
-                             ),
+            )),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Exit", self.close_app)
         )
+
+    # Helper function to create menu item
+    def create_menu_item(self, section_name, i):
+        return pystray.MenuItem(f"Mount {self.config_checker.get_shares_for_section(section_name)[i]}",
+                                functools.partial(self.notify_mount, section_name, i))
+
+    # Helper function to notify about mount
+    def notify_mount(self, section_name, i, Icon, item):
+        Icon.notify(self.my_smb.mount_smb_section(section_name, i))
+
+
+    # Working loop over one section
+    # @property
+    # def menu(self):
+    #     section_name = self.config_checker.get_all_section_names()[0]
+    #     shares = self.config_checker.get_shares_for_section(section_name)
+    #
+    #     # Define a helper function to create menu items
+    #     def create_menu_item(i):
+    #         return pystray.MenuItem(f"Mount {shares[i]}", functools.partial(self.notify_mount, section_name, i))
+    #
+    #     menu_items = [create_menu_item(i) for i in range(len(shares))]
+    #
+    #     return pystray.Menu(
+    #         pystray.MenuItem("Unmount All SMB", lambda Icon, item: Icon.notify(self.my_smb.unmount_all_smb()),
+    #                          enabled=self.is_config),
+    #         pystray.Menu.SEPARATOR,
+    #         pystray.MenuItem(section_name, pystray.Menu(*menu_items)),
+    #         pystray.Menu.SEPARATOR,
+    #         pystray.MenuItem("Other", pystray.Menu(
+    #             pystray.MenuItem("Edit config file", self.edit_config_file_and_reload)
+    #         )),
+    #         pystray.Menu.SEPARATOR,
+    #         pystray.MenuItem("Exit", self.close_app)
+    #     )
+    #
+    #
+    # def notify_mount(self, section_name, i, Icon, item):
+    #     Icon.notify(self.my_smb.mount_smb_section(section_name, i))
 
     def log_init(self) -> None:
         self.logger.info("*" * 80)
