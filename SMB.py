@@ -69,7 +69,7 @@ class SMB:
 
         return msg[:self.MAX_NUMBER_OF_CHARACTERS_IN_TRAY_NOTIFICATION]
 
-    def unmount_smb_letter(self, letter:str) -> str:
+    def unmount_smb_letter(self, letter: str) -> str:
         self.logger.info(f"Attempting to unmount drive {letter.upper()}:")
 
         if not self.is_drive_mounted(letter):
@@ -138,3 +138,32 @@ class SMB:
 
     def get_last_free_letter(self):
         return self.get_free_drive_letters()[-1]
+
+    def unmount_all_smb(self):
+        all_mounted_letters_on_server = self.get_all_mounted_letters_for_ip()
+        for letter in all_mounted_letters_on_server:
+            self.unmount_smb_letter(letter)
+
+    def get_all_mounted_letters_for_ip(self) -> list[str]:
+        mount_smb_cmd = f'net use'
+        process = subprocess.Popen(mount_smb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, _ = process.communicate()
+
+        rows = stdout.decode('utf-8').split('\r\n')
+        ignored_start_strings = ['New connections', 'Status', '-------', 'The command']
+        mounted_letters = []
+        for row in rows:
+            if row and (not any(row.startswith(prefix) for prefix in ignored_start_strings)):
+
+                # At this point all extra rows have been removed. Should work without removing these too.
+                # OK           Z:        \\192.168.1.6\downloads   Microsoft Windows Network
+                # OK                     \\192.168.1.6\IPC$        Microsoft Windows Network
+                # There might be rows without mounted letter
+
+                letter = row.split(':')[0].split()[1].strip()
+                if len(letter) == 1:
+                    ip = row.split('\\\\')[1].split('\\')[0]
+                    if ip == self.host:
+                        mounted_letters.append(letter)
+
+        return mounted_letters

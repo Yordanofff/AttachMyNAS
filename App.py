@@ -47,7 +47,9 @@ class Tray:
         return pystray.Menu(
             pystray.MenuItem("Mount SMB", lambda Icon, item: Icon.notify(self.my_smb.mount_smb()),
                              enabled=self.is_config),
-            pystray.MenuItem("Unmount SMB", lambda Icon, item: Icon.notify(self.my_smb.unmount_smb_letter()),
+            # pystray.MenuItem("Unmount SMB", lambda Icon, item: Icon.notify(self.my_smb.unmount_smb_letter()),
+            #                  enabled=self.is_config),
+            pystray.MenuItem("Unmount All SMB", lambda Icon, item: Icon.notify(self.my_smb.unmount_all_smb()),
                              enabled=self.is_config),
             pystray.Menu.SEPARATOR,
             # pystray.MenuItem("Mount USB Storage", lambda Icon, item: Icon.notify(self.my_ssh.mount()[1]),
@@ -57,6 +59,7 @@ class Tray:
             # pystray.MenuItem("Re-Mount USB Storage", lambda Icon, item: Icon.notify(self.my_ssh.remount()[1]),
             #                  enabled=self.is_config),
             pystray.Menu.SEPARATOR,
+
             pystray.MenuItem("Other", pystray.Menu(
                 pystray.MenuItem("Edit config file", self.edit_config_file_and_reload),
                 # pystray.MenuItem("Check Connection", lambda Icon, item: Icon.notify(self.my_ssh.is_connected_msg()),

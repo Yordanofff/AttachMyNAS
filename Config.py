@@ -107,33 +107,32 @@ class Config:
         if os.path.isfile(self.config_file):
             conf = configparser.ConfigParser()
             conf.read(self.config_file)
-            all_sections_in = True
-            for section in ['DEFAULT', 'SSH']:
-                if section not in conf:
-                    self.logger.error(f"Section {section}, not in the conf file.")
-                    all_sections_in = False
-
-            if not all_sections_in:
-                return False
 
             if not (conf['DEFAULT'].get('host_ip')):
                 self.logger.error(f"Error: IP address of the host_ip - not in the config file.")
                 return False
 
-            all_fields_in = True
-            for field in ['user', 'pass']:
-                if not (conf['SSH'].get(field)):
-                    self.logger.error(f"Error: No details for [SSH] - \"{field}\"")
-                    all_fields_in = False
-
-            if not all_fields_in:
+            if self.get_num_sections_without_default == 0:
+                self.logger.error('No categories in the config file.')
                 return False
+
+            # all_fields_in = True
+            # for field in ['user', 'pass']:
+            #     if not (conf['SSH'].get(field)):
+            #         self.logger.error(f"Error: No details for [SSH] - \"{field}\"")
+            #         all_fields_in = False
+            #
+            # if not all_fields_in:
+            #     return False
 
         self.logger.info("All required data is in.")
         return True
 
     def get_all_section_names(self) -> list[str]:
         return [i for i in self.config.sections()]
+
+    def get_num_sections_without_default(self) -> int:
+        return len(self.get_all_section_names())
 
     def is_username_password_filled_in_section(self, section):
         if section not in self.get_all_section_names():
