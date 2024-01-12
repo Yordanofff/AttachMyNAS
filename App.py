@@ -86,10 +86,10 @@ class Tray:
         self.logger.info("Closing the app")
         self.icon.stop()
 
-    def unmount_all(self) -> None:
-        self.logger.info("Unmounting all SMB locations..")
-        # self.my_ssh.unmount()
-        self.my_smb.unmount_smb_letter()
+    # def unmount_all(self) -> None:
+    #     self.logger.info("Unmounting all SMB locations..")
+    #     # self.my_ssh.unmount()
+    #     self.my_smb.unmount_smb_letter()
 
     def edit_config_file_and_reload(self) -> None:
         """

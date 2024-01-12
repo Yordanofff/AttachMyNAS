@@ -20,8 +20,8 @@ class Config:
             # raise FileNotFoundError(msg)
 
         # Read values from the configuration file and assign them to instance variables
-        config = configparser.ConfigParser()
-        config.read(self.config_file)
+        self.config = configparser.ConfigParser()
+        self.config.read(self.config_file)
 
         # self.scripts_folder_location = config.get(rpi_section_name_in_config_file, "SCRIPTS_FOLDER_LOCATION")
 
@@ -46,6 +46,7 @@ class Config:
         if os.path.isfile(new_name):
             self.logger.info(f"The file '{new_name}' already exists. Will be re-created.")
 
+        # TODO -self
         conf = configparser.ConfigParser()
         conf.read(self.config_file)
 
@@ -131,24 +132,35 @@ class Config:
         self.logger.info("All required data is in.")
         return True
 
-    # def replace_source_line_with_path_in_the_initial_script(self):
-    #     self.logger.info(f"Attempting to update the source location in {self.initial_script_sh_location}")
-    #
-    #     full_path = f"{self.scripts_folder_location}/{initial_script_conf_file_name}"
-    #     """To be done before uploading to rPI"""
-    #     with open(self.initial_script_sh_location, 'r') as file:
-    #         lines = file.readlines()
-    #
-    #     found = False
-    #     for index, line in enumerate(lines):
-    #         if line.strip().startswith("source"):
-    #             lines[index] = f"source {full_path}\n"
-    #             found = True
-    #             break
-    #
-    #     if found:
-    #         with open(self.initial_script_sh_location, 'w') as file:
-    #             file.writelines(lines)
-    #         self.logger.info(f"Line starting with 'source' replaced with 'source {full_path}'.")
-    #     else:
-    #         self.logger.error(f"No line starting with 'source' found in the {self.initial_script_sh_location} file.")
+    def get_all_section_names(self) -> list[str]:
+        return [i for i in self.config.sections()]
+
+    def is_username_password_filled_in_section(self, section):
+        if section not in self.get_all_section_names():
+            raise KeyError(f"Section '{section}' not found in the configuration.")
+        if self.get_username_for_section(section) and self.get_password_for_section(section):
+            return True
+        return False
+
+    def get_username_for_section(self, section: str) -> str:
+        return self.get_value_for_section('username', section)
+
+    def get_password_for_section(self, section: str) -> str:
+        return self.get_value_for_section('password', section)
+
+    def get_shares_for_section(self, section: str) -> list[str]:
+        shares_str_no_comment = (self.get_value_for_section('shares', section)).split('#')[0]
+        return [i.strip() for i in shares_str_no_comment.split(",")] if shares_str_no_comment else []
+
+    def get_value_for_section(self, key_to_find: str, section: str) -> str:
+        section_items: dict = (dict(self.config.items(section)))
+        section_items.pop('host_ip')
+        return section_items[key_to_find].strip() if key_to_find in section_items else ''
+
+
+    @staticmethod
+    def _is_empty_value_in_dict(dict_with_username_password: dict) -> bool:
+        for k, v in dict_with_username_password.items():
+            if v == "":
+                return True
+        return False

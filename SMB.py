@@ -24,16 +24,16 @@ class SMB:
         # if self.password == "":
         #     self.password = config.get('SSH', 'pass')
 
-        # self.log_init()
+        self.log_init()
 
-    # def log_init(self):
-    #     self.logger.info("*" * 80)
-    #     self.logger.info("INITIALIZING SMB:")
-    #     self.logger.info(f"host: {self.host}")
-    #     self.logger.info(f"user: {self.user}")
-    #     self.logger.info(f"password: {self.password}")
-    #     self.logger.info(f"share_name: {self.share_name}")
-    #     self.logger.info("*" * 80)
+    def log_init(self):
+        self.logger.info("*" * 80)
+        self.logger.info("INITIALIZING SMB:")
+        self.logger.info(f"host: {self.host}")
+        self.logger.info(f"user: {self.user}")
+        self.logger.info(f"password: {self.password}")
+        self.logger.info(f"share_name: {self.share_name}")
+        self.logger.info("*" * 80)
 
     def mount_smb(self) -> str:
         """
