@@ -97,11 +97,16 @@ class Tray:
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(sections[0], pystray.Menu(
                 pystray.MenuItem(f"Mount {self.config_checker.get_shares_for_section(sections[0])[0]}", lambda Icon, item: Icon.notify(
-                    self.my_smb.mount_smb(self.config_checker.get_username_for_section(sections[0]),
-                                          self.config_checker.get_password_for_section(sections[0]),
-                                          self.config_checker.get_shares_for_section(sections[0])[0]
-                                          )
-                ))
+                    # self.my_smb.mount_smb(self.config_checker.get_username_for_section(sections[0]),
+                    #                       self.config_checker.get_password_for_section(sections[0]),
+                    #                       self.config_checker.get_shares_for_section(sections[0])[0]
+                    #                       )
+                    self.my_smb.mount_smb_section(sections[0], 0)
+                )),
+                pystray.MenuItem(f"Mount {self.config_checker.get_shares_for_section(sections[0])[1]}",
+                                 lambda Icon, item: Icon.notify(
+                                     self.my_smb.mount_smb_section(sections[0], 1)
+                                 ))
             )),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Other", pystray.Menu(

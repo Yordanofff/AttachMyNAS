@@ -3,7 +3,7 @@ import string
 import subprocess
 import ctypes
 import psutil
-
+from Config import Config
 from Logger import MyLogger
 
 
@@ -12,7 +12,7 @@ class SMB:
         self.logger = MyLogger("SMB")
         self.config_file = config_file_name
         # self.letter = letter  # Will be "P" by default - as it will be used on raspberry Pi
-
+        self.my_conf = Config()
         config = configparser.ConfigParser()
         config.read(self.config_file)
 
@@ -72,10 +72,12 @@ class SMB:
 
         return msg[:self.MAX_NUMBER_OF_CHARACTERS_IN_TRAY_NOTIFICATION]
 
-    # def mount_smb_section(self, section_name: str):
-    #     username = .get_username_for_section(section_name)
-    #     # TODO: get config.get_username_for_section ?
-
+    def mount_smb_section(self, section_name: str, share_name_position: int):
+        username = self.my_conf.get_username_for_section(section_name)
+        password = self.my_conf.get_password_for_section(section_name)
+        share_name = self.my_conf.get_shares_for_section(section_name)[share_name_position]
+        return self.mount_smb(username, password, share_name)
+        # TODO - letter
 
     def mount_all_smb(self, ):
         ...
