@@ -22,7 +22,7 @@ class SMB:
         # self.password = config.get(rpi_section_name_in_config_file, 'SMB_PASSWORD')
         # self.share_name = config.get(rpi_section_name_in_config_file, 'SMB_SHARE_NAME')
         # if self.user == "":
-            # self.user = config.get('SSH', 'user')
+        # self.user = config.get('SSH', 'user')
         # if self.password == "":
         #     self.password = config.get('SSH', 'pass')
 
@@ -37,11 +37,14 @@ class SMB:
         # self.logger.info(f"share_name: {self.share_name}")
         self.logger.info("*" * 80)
 
-    def mount_smb(self, letter: str, share_name: str, username: str, password: str) -> str:
+    def mount_smb(self, username: str, password: str, share_name: str, letter: str = None) -> str:
         """
         # This method will unmount a letter if is already mounted and will re-mount it by execute something like:
         # net use p: \\192.168.1.100\downloads /user: my_username my_password
         """
+        if letter is None:
+            letter = self.get_last_free_letter()
+
         self.logger.info(f"Attempting to mount the SMB volume to {letter.upper()}: drive")
 
         if self.is_drive_mounted(letter):
@@ -68,6 +71,14 @@ class SMB:
             self.logger.error(msg)
 
         return msg[:self.MAX_NUMBER_OF_CHARACTERS_IN_TRAY_NOTIFICATION]
+
+    # def mount_smb_section(self, section_name: str):
+    #     username = .get_username_for_section(section_name)
+    #     # TODO: get config.get_username_for_section ?
+
+
+    def mount_all_smb(self, ):
+        ...
 
     def unmount_smb_letter(self, letter: str) -> str:
         self.logger.info(f"Attempting to unmount drive {letter.upper()}:")
