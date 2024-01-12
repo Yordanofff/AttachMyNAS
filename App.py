@@ -6,7 +6,7 @@ import PIL.Image
 from SMB import SMB
 from Windows import Windows
 from Logger import MyLogger
-from Config import Config, rpi_section_name_in_config_file, initial_script_conf_file_name
+from Config import Config, initial_script_conf_file_name
 
 
 class Tray:
