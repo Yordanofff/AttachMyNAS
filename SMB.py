@@ -2,7 +2,6 @@ import configparser
 import string
 import subprocess
 import ctypes
-import psutil
 from Config import Config
 from Logger import MyLogger
 
@@ -11,31 +10,13 @@ class SMB:
     def __init__(self, config_file_name='App.conf'):
         self.logger = MyLogger("SMB")
         self.config_file = config_file_name
-        # self.letter = letter  # Will be "P" by default - as it will be used on raspberry Pi
         self.my_conf = Config()
         config = configparser.ConfigParser()
         config.read(self.config_file)
 
         self.MAX_NUMBER_OF_CHARACTERS_IN_TRAY_NOTIFICATION = 256
-        # self.host = config.get('DEFAULT', 'host_ip')
-        # self.user = config.get(rpi_section_name_in_config_file, 'SMB_USERNAME')
-        # self.password = config.get(rpi_section_name_in_config_file, 'SMB_PASSWORD')
-        # self.share_name = config.get(rpi_section_name_in_config_file, 'SMB_SHARE_NAME')
-        # if self.user == "":
-        # self.user = config.get('SSH', 'user')
-        # if self.password == "":
-        #     self.password = config.get('SSH', 'pass')
 
-        # self.log_init()
-
-    # def log_init(self):
-    #     self.logger.info("*" * 80)
-    #     self.logger.info("INITIALIZING SMB:")
-    #     # self.logger.info(f"host: {self.host}")
-    #     # self.logger.info(f"user: {self.user}")
-    #     # self.logger.info(f"password: {self.password}")
-    #     # self.logger.info(f"share_name: {self.share_name}")
-    #     self.logger.info("*" * 80)
+    # TODO: Check if share is already mounted
 
     def mount_smb(self, host_ip: str, username: str, password: str, share_name: str, letter: str = None) -> str:
         """
@@ -45,7 +26,8 @@ class SMB:
         if letter is None:
             letter = self.get_last_free_letter()
 
-        self.logger.info(f"Attempting to mount {host_ip}\{share_name} using user: {username} to {letter.upper()}: drive")
+        self.logger.info(
+            f"Attempting to mount {host_ip}\{share_name} using user: {username} to {letter.upper()}: drive")
         if self.is_drive_mounted(letter):
             msg = f"Drive letter {letter.upper()} - already mounted."
             self.logger.info(msg)
@@ -144,12 +126,6 @@ class SMB:
             self.logger.critical(f"Something went wrong: {e}")
             raise e
 
-    @staticmethod
-    def _get_used_drive_letters():
-        drive_bitmask = ctypes.windll.kernel32.GetLogicalDrives()
-        drive_letters = [chr(i + ord('A')) for i in range(26) if drive_bitmask & (1 << i)]
-        return drive_letters
-
     def get_free_drive_letters(self):
         used_letters = self._get_used_drive_letters()
         all_letters = list(string.ascii_uppercase)
@@ -187,9 +163,8 @@ class SMB:
 
     def unmount_every_connection_not_only_the_ones_in_conf(self):
         self.logger.info(f"Attempting to unmount all connections")
-
-        process = subprocess.Popen(f"net use * /delete /yes", shell=True, stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
+        cmd = "net use * /delete /yes"
+        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
 
         stdout = stdout.decode('utf-8')
@@ -209,6 +184,12 @@ class SMB:
 
     def get_all_ip_from_all_sections(self) -> list[str]:
         return list(set(self.my_conf.get_all_section_names()))
+
+    @staticmethod
+    def _get_used_drive_letters():
+        drive_bitmask = ctypes.windll.kernel32.GetLogicalDrives()
+        drive_letters = [chr(i + ord('A')) for i in range(26) if drive_bitmask & (1 << i)]
+        return drive_letters
 
     @staticmethod
     def get_all_mounted_letters_for_ip(host_ip: str) -> list[str]:

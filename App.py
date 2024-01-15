@@ -39,59 +39,13 @@ class Tray:
         self.my_smb = SMB(self.config_file_name)
         self.my_win = Windows(self.config_file_name)
 
-        self.is_config = self.my_config.are_settings_defined()
         self.icon = icon(self.APP_NAME, self.logo, menu=self.menu, title=self.APP_NAME)
-
-        # Use another variable to check when config file changes state from filled in to not filled in and vice versa
-        self.current_state_of_config_file = self.is_config
 
     @property
     def menu(self):
-        all_section_names = self.my_config.get_all_section_names()
-
         # TODO: menu won't show if no shares in conf file. Print warning when app starts if none.
         # Create the part of the menu that will have all sections
-        sections_menu_items = []
-        for section_name in all_section_names:
-            num_shares_for_section = len(self.my_config.get_shares_for_section(section_name))
-            print(section_name, num_shares_for_section)
-            # Add each share to the list
-            inner_menu_for_each_section = [self.create_menu_item(section_name, i) for i in
-                                           range(num_shares_for_section)]
-
-            # inner_menu_for_each_section.insert(
-            #     0, item(f"Mount All - {section_name}",
-            #             lambda icon, item: icon.notify(self.my_smb.mount_all_smb(section_name)),
-            #             enabled=self.my_config.is_data_entered_for_section(section_name)))
-            # inner_menu_for_each_section.insert(1, menu.SEPARATOR)
-
-            inner_menu_for_each_section.insert(
-                0, item(f"Mount All - {section_name}", functools.partial(self.get_mount_all_info, section_name),
-                        enabled=self.my_config.is_data_entered_for_section(section_name)))
-
-            inner_menu_for_each_section.insert(1, menu.SEPARATOR)
-            # inner_menu_for_each_section.insert(0, item("Get info", lambda section_name, icon, item:
-            #     icon.notify(self.get_data_for_section(section_name)), enabled=True))
-
-            inner_menu_for_each_section.insert(
-                0, item("Get info", functools.partial(self.get_info_action, section_name), enabled=True))
-
-            inner_menu_for_each_section.insert(1, menu.SEPARATOR)
-
-            inner_menu_for_each_section.append(menu.SEPARATOR)
-
-            inner_menu_for_each_section.append(
-                item(f"Unmount All - {section_name}", functools.partial(self.get_unmount_all_info, section_name),
-                     enabled=self.my_config.is_ip_entered_for_section(section_name)))
-
-            #
-            # inner_menu_for_each_section.append(
-            #     item(f"Unmount All - {section_name}",
-            #          lambda icon, item: icon.notify(self.my_smb.unmount_all_smb_for_ip(current_section_ip)),
-            #          enabled=self.my_config.is_ip_entered_for_section(section_name)))
-
-            section_menu = menu(*inner_menu_for_each_section)
-            sections_menu_items.append(item(section_name, section_menu))
+        sections_menu_items = self.get_sections_menu_items()
 
         return menu(
             item("Unmount All [PC]", lambda icon, item: icon.notify(
@@ -109,6 +63,34 @@ class Tray:
             item("Exit", self.close_app)
         )
 
+    def get_sections_menu_items(self):
+        all_section_names = self.my_config.get_all_section_names()
+        sections_menu_items = []
+        for section_name in all_section_names:
+            num_shares_for_section = len(self.my_config.get_shares_for_section(section_name))
+
+            # Add each share to the list
+            inner_menu_for_each_section = [self.create_menu_item(section_name, i) for i in
+                                           range(num_shares_for_section)]
+
+            inner_menu_for_each_section.insert(
+                0, item(f"Mount All - {section_name}", functools.partial(self.get_mount_all_info, section_name),
+                        enabled=self.my_config.is_data_entered_for_section(section_name)))
+            inner_menu_for_each_section.insert(1, menu.SEPARATOR)
+
+            inner_menu_for_each_section.insert(
+                0, item("Get info", functools.partial(self.get_info_action, section_name), enabled=True))
+            inner_menu_for_each_section.insert(1, menu.SEPARATOR)
+
+            inner_menu_for_each_section.append(menu.SEPARATOR)
+            inner_menu_for_each_section.append(
+                item(f"Unmount All - {section_name}", functools.partial(self.get_unmount_all_info, section_name),
+                     enabled=self.my_config.is_ip_entered_for_section(section_name)))
+
+            section_menu = menu(*inner_menu_for_each_section)
+            sections_menu_items.append(item(section_name, section_menu))
+        return sections_menu_items
+
     def get_unmount_all_info(self, section_name, icon, item):
         current_section_ip = self.my_config.get_ip_for_section(section_name)
         icon.notify(self.my_smb.unmount_all_smb_for_ip(current_section_ip))
@@ -118,12 +100,6 @@ class Tray:
 
     def get_info_action(self, section_name, icon, item):
         icon.notify(self.my_config.get_all_data_for_section_for_notification(section_name))
-
-    # def get_info_action(self, section_name, icon, item):
-    #     icon.notify(self.get_data_for_section(section_name))
-
-    # def get_data_for_section(self, sectn_name):
-    #     #     return self.my_config.get_all_data_for_section_for_notification(section_name)io
 
     # Helper function to create menu item
     def create_menu_item(self, section_name, i):
