@@ -193,7 +193,7 @@ class SMB:
         return msg[:self.MAX_NUMBER_OF_CHARACTERS_IN_TRAY_NOTIFICATION]
 
     def get_all_ip_from_all_sections(self) -> list[str]:
-        return list(set(self.my_conf.get_all_section_names()))
+        return list(set(self.my_conf.get_all_sections_ip()))
 
     @staticmethod
     def _get_used_drive_letters():

@@ -28,6 +28,10 @@ class Config:
     def get_all_section_names(self) -> list[str]:
         return [i for i in self.config.sections()]
 
+    def get_all_sections_ip(self) -> list[str]:
+        all_ips = [self.get_ip_for_section(i) for i in self.get_all_section_names()]
+        return [i for i in all_ips if i != '']
+
     def _get_is_data_entered_for_section_and_missing_fields(self, section_name: str) -> tuple[bool, list[str]]:
         all_data_entered = True
         error_msgs = []
