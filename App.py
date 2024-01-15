@@ -1,7 +1,9 @@
 import functools
 import os
 import subprocess
-import pystray
+import sys
+
+from pystray import Icon as icon, Menu as menu, MenuItem as item
 import PIL.Image
 
 from SMB import SMB
@@ -38,7 +40,7 @@ class Tray:
         self.my_win = Windows(self.config_file_name)
 
         self.is_config = self.my_config.are_settings_defined()
-        self.icon = pystray.Icon(self.APP_NAME, self.logo, menu=self.menu, title=self.APP_NAME)
+        self.icon = icon(self.APP_NAME, self.logo, menu=self.menu, title=self.APP_NAME)
 
         # Use another variable to check when config file changes state from filled in to not filled in and vice versa
         self.current_state_of_config_file = self.is_config
@@ -52,81 +54,87 @@ class Tray:
         sections_menu_items = []
         for section_name in all_section_names:
             num_shares_for_section = len(self.my_config.get_shares_for_section(section_name))
-
+            print(section_name, num_shares_for_section)
             # Add each share to the list
             inner_menu_for_each_section = [self.create_menu_item(section_name, i) for i in
                                            range(num_shares_for_section)]
 
+            # inner_menu_for_each_section.insert(
+            #     0, item(f"Mount All - {section_name}",
+            #             lambda icon, item: icon.notify(self.my_smb.mount_all_smb(section_name)),
+            #             enabled=self.my_config.is_data_entered_for_section(section_name)))
+            # inner_menu_for_each_section.insert(1, menu.SEPARATOR)
+
             inner_menu_for_each_section.insert(
-                0, pystray.MenuItem("Mount All",
-                                    lambda Icon, item: Icon.notify(self.my_smb.mount_all_smb(section_name)),
-                                    enabled=self.my_config.is_data_entered_for_section(section_name)))
-            inner_menu_for_each_section.insert(1, pystray.Menu.SEPARATOR)
+                0, item(f"Mount All - {section_name}", functools.partial(self.get_mount_all_info, section_name),
+                        enabled=self.my_config.is_data_entered_for_section(section_name)))
 
-            inner_menu_for_each_section.append(pystray.Menu.SEPARATOR)
-            current_section_ip = self.my_config.get_ip_for_section(section_name)
+            inner_menu_for_each_section.insert(1, menu.SEPARATOR)
+            # inner_menu_for_each_section.insert(0, item("Get info", lambda section_name, icon, item:
+            #     icon.notify(self.get_data_for_section(section_name)), enabled=True))
+
+            inner_menu_for_each_section.insert(
+                0, item("Get info", functools.partial(self.get_info_action, section_name), enabled=True))
+
+            inner_menu_for_each_section.insert(1, menu.SEPARATOR)
+
+            inner_menu_for_each_section.append(menu.SEPARATOR)
+
             inner_menu_for_each_section.append(
-                pystray.MenuItem("Unmount All",
-                                 lambda Icon, item: Icon.notify(self.my_smb.unmount_all_smb_for_ip(current_section_ip)),
-                                 enabled=self.my_config.is_ip_entered_for_section(section_name)))
+                item(f"Unmount All - {section_name}", functools.partial(self.get_unmount_all_info, section_name),
+                     enabled=self.my_config.is_ip_entered_for_section(section_name)))
 
-            section_menu = pystray.Menu(*inner_menu_for_each_section)
-            sections_menu_items.append(pystray.MenuItem(section_name, section_menu))
+            #
+            # inner_menu_for_each_section.append(
+            #     item(f"Unmount All - {section_name}",
+            #          lambda icon, item: icon.notify(self.my_smb.unmount_all_smb_for_ip(current_section_ip)),
+            #          enabled=self.my_config.is_ip_entered_for_section(section_name)))
 
-        return pystray.Menu(
-            pystray.MenuItem("Unmount All [PC]", lambda Icon, item: Icon.notify(
+            section_menu = menu(*inner_menu_for_each_section)
+            sections_menu_items.append(item(section_name, section_menu))
+
+        return menu(
+            item("Unmount All [PC]", lambda icon, item: icon.notify(
                 self.my_smb.unmount_every_connection_not_only_the_ones_in_conf()), enabled=True),
-            pystray.MenuItem("Unmount All [config]",
-                             lambda Icon, item: Icon.notify(self.my_smb.unmount_all_smb()), enabled=True),
-            pystray.Menu.SEPARATOR,
+            item("Unmount All [config]",
+                 lambda icon, item: icon.notify(self.my_smb.unmount_all_smb()), enabled=True),
+            menu.SEPARATOR,
             *sections_menu_items,
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Other", pystray.Menu(
-                pystray.MenuItem("Edit config file", self.edit_config_file_and_reload)
+            menu.SEPARATOR,
+            item("Other", menu(
+                item("Edit config file", self.edit_config_file_and_reload)
             )),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Exit", self.close_app)
+            menu.SEPARATOR,
+            item("Restart", self.restart_app),
+            item("Exit", self.close_app)
         )
+
+    def get_unmount_all_info(self, section_name, icon, item):
+        current_section_ip = self.my_config.get_ip_for_section(section_name)
+        icon.notify(self.my_smb.unmount_all_smb_for_ip(current_section_ip))
+
+    def get_mount_all_info(self, section_name, icon, item):
+        icon.notify(self.my_smb.mount_all_smb(section_name))
+
+    def get_info_action(self, section_name, icon, item):
+        icon.notify(self.my_config.get_all_data_for_section_for_notification(section_name))
+
+    # def get_info_action(self, section_name, icon, item):
+    #     icon.notify(self.get_data_for_section(section_name))
+
+    # def get_data_for_section(self, sectn_name):
+    #     #     return self.my_config.get_all_data_for_section_for_notification(section_name)io
 
     # Helper function to create menu item
     def create_menu_item(self, section_name, i):
         share_name = self.my_config.get_shares_for_section(section_name)[i]
-        return pystray.MenuItem(f"Mount {share_name}",
-                                functools.partial(self.notify_mount, section_name, i),
-                                enabled=self.my_config.is_data_entered_for_section(section_name))
+        return item(f"Mount {share_name}",
+                    functools.partial(self.notify_mount, section_name, i),
+                    enabled=self.my_config.is_data_entered_for_section(section_name))
 
     # Helper function to notify about mount
-    def notify_mount(self, section_name, i, Icon, item):
-        Icon.notify(self.my_smb.mount_smb_section(section_name, i))
-
-    # Working loop over one section
-    # @property
-    # def menu(self):
-    #     section_name = self.config_checker.get_all_section_names()[0]
-    #     shares = self.config_checker.get_shares_for_section(section_name)
-    #
-    #     # Define a helper function to create menu items
-    #     def create_menu_item(i):
-    #         return pystray.MenuItem(f"Mount {shares[i]}", functools.partial(self.notify_mount, section_name, i))
-    #
-    #     menu_items = [create_menu_item(i) for i in range(len(shares))]
-    #
-    #     return pystray.Menu(
-    #         pystray.MenuItem("Unmount All SMB", lambda Icon, item: Icon.notify(self.my_smb.unmount_all_smb()),
-    #                          enabled=self.is_config),
-    #         pystray.Menu.SEPARATOR,
-    #         pystray.MenuItem(section_name, pystray.Menu(*menu_items)),
-    #         pystray.Menu.SEPARATOR,
-    #         pystray.MenuItem("Other", pystray.Menu(
-    #             pystray.MenuItem("Edit config file", self.edit_config_file_and_reload)
-    #         )),
-    #         pystray.Menu.SEPARATOR,
-    #         pystray.MenuItem("Exit", self.close_app)
-    #     )
-    #
-    #
-    # def notify_mount(self, section_name, i, Icon, item):
-    #     Icon.notify(self.my_smb.mount_smb_section(section_name, i))
+    def notify_mount(self, section_name, i, icon, item):
+        icon.notify(self.my_smb.mount_smb_section(section_name, i))
 
     def log_init(self) -> None:
         self.logger.info("*" * 80)
@@ -142,39 +150,18 @@ class Tray:
         self.logger.info("Closing the app")
         self.icon.stop()
 
-    # def unmount_all(self) -> None:
-    #     self.logger.info("Unmounting all SMB locations..")
-    #     # self.my_ssh.unmount()
-    #     self.my_smb.unmount_smb_letter()
-
     def edit_config_file_and_reload(self) -> None:
         """
-        Will enable or disable most buttons on the interface if config is not filled in.
+        Will enable or disable most buttons on the interface depending on the changes made.
+        Unmount all for each section will be enabled if there's an IP there.
+        Mount options require ip, user, pw and at least 1 share.
         """
-        app_needs_restart = False
-        if self.my_win.edit_config_file():
-            # if IP address updated - it needs to re-load the classes
-            app_needs_restart = True
+        if self.my_win.is_edit_config_file():
+            self.restart_app()
 
-        self.is_config = self.my_config.are_settings_defined()
-        if not self.is_config:
-            # even if changes have been made, but not all data is entered - don't restart the app.
-            app_needs_restart = False
-
-        # Close the app and re-open it. Currently - the only way to redraw the app menu. # todo
-        if (self.is_config != self.current_state_of_config_file) or app_needs_restart:
-            # Only re-open if state has changed - It will restart the app even if just checking the config file.
-            self.current_state_of_config_file = self.is_config
-            self.close_app()
-            if "_internal" in self.root_folder:
-                # When compiled - no need to activate venv and will not run .py but exe file.
-                app_folder = os.path.dirname(self.root_folder)  # 1 level up from the _internal folder
-                executable_file_path = os.path.join(app_folder, "TrayApp.exe")  # todo - name
-                self.logger.info(f"Starting {executable_file_path}")
-                subprocess.Popen([executable_file_path])
-            else:
-                self.logger.info(f"Activating venv and starting the py script from {self.script_file_path}")
-                subprocess.Popen(["cmd.exe", "/K", self.activate_script_path, "&&", "python", self.script_file_path])
+    def restart_app(self):
+        self.close_app()
+        subprocess.Popen([sys.executable] + sys.argv, creationflags=subprocess.CREATE_NO_WINDOW)
 
     def run_app(self) -> None:
         self.icon.run()
