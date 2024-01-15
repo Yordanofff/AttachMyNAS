@@ -17,7 +17,7 @@ class SMB:
         config.read(self.config_file)
 
         self.MAX_NUMBER_OF_CHARACTERS_IN_TRAY_NOTIFICATION = 256
-        self.host = config.get('DEFAULT', 'host_ip')
+        # self.host = config.get('DEFAULT', 'host_ip')
         # self.user = config.get(rpi_section_name_in_config_file, 'SMB_USERNAME')
         # self.password = config.get(rpi_section_name_in_config_file, 'SMB_PASSWORD')
         # self.share_name = config.get(rpi_section_name_in_config_file, 'SMB_SHARE_NAME')
@@ -26,18 +26,18 @@ class SMB:
         # if self.password == "":
         #     self.password = config.get('SSH', 'pass')
 
-        self.log_init()
+        # self.log_init()
 
-    def log_init(self):
-        self.logger.info("*" * 80)
-        self.logger.info("INITIALIZING SMB:")
-        self.logger.info(f"host: {self.host}")
-        # self.logger.info(f"user: {self.user}")
-        # self.logger.info(f"password: {self.password}")
-        # self.logger.info(f"share_name: {self.share_name}")
-        self.logger.info("*" * 80)
+    # def log_init(self):
+    #     self.logger.info("*" * 80)
+    #     self.logger.info("INITIALIZING SMB:")
+    #     # self.logger.info(f"host: {self.host}")
+    #     # self.logger.info(f"user: {self.user}")
+    #     # self.logger.info(f"password: {self.password}")
+    #     # self.logger.info(f"share_name: {self.share_name}")
+    #     self.logger.info("*" * 80)
 
-    def mount_smb(self, username: str, password: str, share_name: str, letter: str = None) -> str:
+    def mount_smb(self, host_ip: str, username: str, password: str, share_name: str, letter: str = None) -> str:
         """
         # This method will unmount a letter if is already mounted and will re-mount it by execute something like:
         # net use p: \\192.168.1.100\downloads /user: my_username my_password
@@ -52,7 +52,7 @@ class SMB:
             self.logger.info(msg)
             return msg
 
-        mount_smb_cmd = f'net use {letter}: \\\\{self.host}\\{share_name} /user:{username} {password}'
+        mount_smb_cmd = f'net use {letter}: \\\\{host_ip}\\{share_name} /user:{username} {password}'
         process = subprocess.Popen(mount_smb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
 
@@ -73,14 +73,24 @@ class SMB:
         return msg[:self.MAX_NUMBER_OF_CHARACTERS_IN_TRAY_NOTIFICATION]
 
     def mount_smb_section(self, section_name: str, share_name_position: int):
+        ip = self.my_conf.get_ip_for_section(section_name)
         username = self.my_conf.get_username_for_section(section_name)
         password = self.my_conf.get_password_for_section(section_name)
         share_name = self.my_conf.get_shares_for_section(section_name)[share_name_position]
-        return self.mount_smb(username, password, share_name)
+        return self.mount_smb(ip, username, password, share_name)
         # TODO - letter
 
-    def mount_all_smb(self, ):
-        ...
+    def mount_all_smb(self, section_name: str):
+        all_shares_names_count = len(self.my_conf.get_shares_for_section(section_name))
+        failed_mounts = []
+        for i in range(all_shares_names_count):
+            result = self.mount_smb_section(section_name, i)
+            if not result.startswith('Success'):
+                failed_mounts.append(self.my_conf.get_shares_for_section(section_name)[i])
+        if len(failed_mounts) == 0:
+            return f'All [{all_shares_names_count}] drives mounted successfully.'
+        else:
+            return f'Not all [{all_shares_names_count}] drives mounted successfully. Failed mounts: {", ".join(failed_mounts)}'
 
     def unmount_smb_letter(self, letter: str) -> str:
         self.logger.info(f"Attempting to unmount drive {letter.upper()}:")
@@ -152,12 +162,57 @@ class SMB:
     def get_last_free_letter(self):
         return self.get_free_drive_letters()[-1]
 
-    def unmount_all_smb(self):
-        all_mounted_letters_on_server = self.get_all_mounted_letters_for_ip()
+    def unmount_all_smb_for_ip(self, host_ip: str) -> str:
+        all_mounted_letters_on_server = self.get_all_mounted_letters_for_ip(host_ip)
+        failed_to_unmount = []
         for letter in all_mounted_letters_on_server:
-            self.unmount_smb_letter(letter)
+            result = self.unmount_smb_letter(letter)
+            if not result.startswith('Success'):
+                failed_to_unmount.append(letter)
+        if failed_to_unmount:
+            return f"Some drives failed to unmount: {', '.join(failed_to_unmount)}"
+        else:
+            return f"Success. All {len(all_mounted_letters_on_server)} drives unmounted successfully."
 
-    def get_all_mounted_letters_for_ip(self) -> list[str]:
+    def unmount_all_smb(self):
+        all_ip = self.get_all_ip_from_all_sections()
+        failed_to_unmount = []
+        for ip in all_ip:
+            result = self.unmount_all_smb_for_ip(ip)
+            if not result.startswith('Success'):
+                failed_to_unmount.append(ip)
+        if failed_to_unmount:
+            return f"Some drives failed to unmount for IP: {', '.join(failed_to_unmount)}"
+        else:
+            return f"Success. All connections unmounted successfully."
+
+    def unmount_every_connection_not_only_the_ones_in_conf(self):
+        self.logger.info(f"Attempting to unmount all connections")
+
+        process = subprocess.Popen(f"net use * /delete /yes", shell=True, stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+
+        stdout = stdout.decode('utf-8')
+        stderr = stderr.decode('utf-8')
+
+        if stderr:
+            msg = f"Error - could not unmount all connections: \n{stderr}"
+            self.logger.error(msg)
+        elif stdout:
+            msg = f"Success: All network drives and connections - unmounted: \n{stdout}"
+            self.logger.info(msg)
+        else:
+            # Not sure if this will ever happen
+            msg = f"stdout: {stdout} \n stderr: {stderr}"
+            self.logger.error(msg)
+        return msg[:self.MAX_NUMBER_OF_CHARACTERS_IN_TRAY_NOTIFICATION]
+
+    def get_all_ip_from_all_sections(self) -> list[str]:
+        return list(set(self.my_conf.get_all_section_names()))
+
+    @staticmethod
+    def get_all_mounted_letters_for_ip(host_ip: str) -> list[str]:
         mount_smb_cmd = f'net use'
         process = subprocess.Popen(mount_smb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, _ = process.communicate()
@@ -176,7 +231,7 @@ class SMB:
                 letter = row.split(':')[0].split()[1].strip()
                 if len(letter) == 1:
                     ip = row.split('\\\\')[1].split('\\')[0]
-                    if ip == self.host:
+                    if ip == host_ip:
                         mounted_letters.append(letter)
 
         return mounted_letters

@@ -33,80 +33,55 @@ class Tray:
         self.logger = MyLogger("Tray")
         self.log_init()
 
-        self.config_checker = Config(self.config_file_name)
+        self.my_config = Config(self.config_file_name)
         self.my_smb = SMB(self.config_file_name)
         self.my_win = Windows(self.config_file_name)
 
-        self.is_config = self.config_checker.are_settings_defined()
+        self.is_config = self.my_config.are_settings_defined()
         self.icon = pystray.Icon(self.APP_NAME, self.logo, menu=self.menu, title=self.APP_NAME)
 
         # Use another variable to check when config file changes state from filled in to not filled in and vice versa
         self.current_state_of_config_file = self.is_config
 
     @property
-    def menu_old_no_loop(self):
-        sections = self.config_checker.get_all_section_names()
-        return pystray.Menu(
-            # pystray.MenuItem("Mount SMB", lambda Icon, item: Icon.notify(self.my_smb.mount_smb()),
-            #                  enabled=self.is_config),
-            # pystray.MenuItem("Unmount SMB", lambda Icon, item: Icon.notify(self.my_smb.unmount_smb_letter()),
-            #                  enabled=self.is_config),
-            pystray.MenuItem("Unmount All SMB", lambda Icon, item: Icon.notify(self.my_smb.unmount_all_smb()),
-                             enabled=self.is_config),
-            pystray.Menu.SEPARATOR,
-            # pystray.MenuItem("Mount USB Storage", lambda Icon, item: Icon.notify(self.my_ssh.mount()[1]),
-            #                  enabled=self.is_config),
-            # pystray.MenuItem("Unmount USB Storage", lambda Icon, item: Icon.notify(self.my_ssh.unmount()[1]),
-            #                  enabled=self.is_config),
-            # pystray.MenuItem("Re-Mount USB Storage", lambda Icon, item: Icon.notify(self.my_ssh.remount()[1]),
-            #                  enabled=self.is_config),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem(sections[0], pystray.Menu(
-                pystray.MenuItem("Mount SMB", lambda Icon, item: Icon.notify(
-                    self.my_smb.mount_smb(self.config_checker.get_username_for_section(sections[0]),
-                                          self.config_checker.get_password_for_section(sections[0]),
-                                          self.config_checker.get_shares_for_section(sections[0])[0]
-                                          ))),
-                # enabled=self.is_config),
-
-                # pystray.MenuItem(sections[1], pystray.Menu(
-                #     pystray.MenuItem("Mount SMB", lambda Icon, item: Icon.notify(
-                #         self.my_smb.mount_smb()),
-                #         enabled=self.is_config),
-                # ),
-                pystray.MenuItem("Other", pystray.Menu(
-                    pystray.MenuItem("Edit config file", self.edit_config_file_and_reload),
-                    # pystray.MenuItem("Check Connection", lambda Icon, item: Icon.notify(self.my_ssh.is_connected_msg()),
-                    #                  enabled=self.is_config),
-                    pystray.Menu.SEPARATOR,
-                    # pystray.MenuItem("Install rPi (keep img file)", self.install_rpi, enabled=self.is_config),
-                    # pystray.MenuItem("Install rPi (new img file)", self.install_rpi_new_img, enabled=self.is_config),
-                    pystray.Menu.SEPARATOR,
-                    # pystray.MenuItem("Reboot rPi", self.my_ssh.reboot, enabled=self.is_config),
-                    # pystray.MenuItem("Shutdown rPi", self.my_ssh.shutdown, enabled=self.is_config),
-                )),
-                pystray.Menu.SEPARATOR,
-                pystray.MenuItem("Exit", self.close_app)
-            )))
-
-    @property
     def menu(self):
-        all_section_names = self.config_checker.get_all_section_names()
+        all_section_names = self.my_config.get_all_section_names()
 
         # TODO: menu won't show if no shares in conf file. Print warning when app starts if none.
-        # Create menu items for each section
-        menu_items = []
+        # Create the part of the menu that will have all sections
+        sections_menu_items = []
         for section_name in all_section_names:
-            shares = self.config_checker.get_shares_for_section(section_name)
-            section_menu_items = [self.create_menu_item(section_name, i) for i in range(len(shares))]
-            section_menu = pystray.Menu(*section_menu_items)
-            menu_items.append(pystray.MenuItem(section_name, section_menu))
+            num_shares_for_section = len(self.my_config.get_shares_for_section(section_name))
+
+            # Add each share to the list
+            inner_menu_for_each_section = [self.create_menu_item(section_name, i) for i in
+                                           range(num_shares_for_section)]
+
+            inner_menu_for_each_section.insert(0, pystray.MenuItem("Mount All",
+                                                                   lambda Icon, item: Icon.notify(
+                                                                       self.my_smb.mount_all_smb(section_name)),
+                                                                   enabled=self.is_config))
+            inner_menu_for_each_section.insert(1, pystray.Menu.SEPARATOR)
+
+            inner_menu_for_each_section.append(pystray.Menu.SEPARATOR)
+            current_section_ip = self.my_config.get_ip_for_section(section_name)
+            inner_menu_for_each_section.append(pystray.MenuItem("Unmount All",
+                                                                lambda Icon, item: Icon.notify(
+                                                                    self.my_smb.unmount_all_smb_for_ip(
+                                                                        current_section_ip)),
+                                                                enabled=self.is_config))
+
+            section_menu = pystray.Menu(*inner_menu_for_each_section)
+            sections_menu_items.append(pystray.MenuItem(section_name, section_menu))
 
         return pystray.Menu(
-            pystray.MenuItem("Unmount All SMB", lambda Icon, item: Icon.notify(self.my_smb.unmount_all_smb()),
+            pystray.MenuItem("Unmount All [PC]", lambda Icon, item: Icon.notify(
+                self.my_smb.unmount_every_connection_not_only_the_ones_in_conf()),
+                             enabled=self.is_config),
+            pystray.MenuItem("Unmount All [config]", lambda Icon, item: Icon.notify(self.my_smb.unmount_all_smb()),
                              enabled=self.is_config),
             pystray.Menu.SEPARATOR,
-            *menu_items,
+            *sections_menu_items,
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Other", pystray.Menu(
                 pystray.MenuItem("Edit config file", self.edit_config_file_and_reload)
@@ -117,7 +92,7 @@ class Tray:
 
     # Helper function to create menu item
     def create_menu_item(self, section_name, i):
-        return pystray.MenuItem(f"Mount {self.config_checker.get_shares_for_section(section_name)[i]}",
+        return pystray.MenuItem(f"Mount {self.my_config.get_shares_for_section(section_name)[i]}",
                                 functools.partial(self.notify_mount, section_name, i))
 
     # Helper function to notify about mount
@@ -182,7 +157,7 @@ class Tray:
             # if IP address updated - it needs to re-load the classes
             app_needs_restart = True
 
-        self.is_config = self.config_checker.are_settings_defined()
+        self.is_config = self.my_config.are_settings_defined()
         if not self.is_config:
             # even if changes have been made, but not all data is entered - don't restart the app.
             app_needs_restart = False

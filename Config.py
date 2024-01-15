@@ -151,9 +151,12 @@ class Config:
         shares_str_no_comment = (self.get_value_for_section('shares', section)).split('#')[0]
         return [i.strip() for i in shares_str_no_comment.split(",")] if shares_str_no_comment else []
 
+    def get_ip_for_section(self, section: str) -> str:
+        return self.get_value_for_section('ip', section)
+
     def get_value_for_section(self, key_to_find: str, section: str) -> str:
         section_items: dict = (dict(self.config.items(section)))
-        section_items.pop('host_ip')
+        # section_items.pop('host_ip')
         return section_items[key_to_find].strip() if key_to_find in section_items else ''
 
     @staticmethod
