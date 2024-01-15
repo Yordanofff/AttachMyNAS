@@ -84,7 +84,8 @@ class Tray:
 
             inner_menu_for_each_section.append(menu.SEPARATOR)
             inner_menu_for_each_section.append(
-                item(f"Unmount All - {section_name}", functools.partial(self.get_unmount_all_info, section_name),
+                item(f"Unmount All - {self.my_config.get_ip_for_section(section_name)}",
+                     functools.partial(self.get_unmount_all_info, section_name),
                      enabled=self.my_config.is_ip_entered_for_section(section_name)))
 
             section_menu = menu(*inner_menu_for_each_section)
