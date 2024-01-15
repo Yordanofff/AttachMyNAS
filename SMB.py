@@ -45,8 +45,7 @@ class SMB:
         if letter is None:
             letter = self.get_last_free_letter()
 
-        self.logger.info(f"Attempting to mount the SMB volume to {letter.upper()}: drive")
-
+        self.logger.info(f"Attempting to mount {host_ip}\{share_name} using user: {username} to {letter.upper()}: drive")
         if self.is_drive_mounted(letter):
             msg = f"Drive letter {letter.upper()} - already mounted."
             self.logger.info(msg)
