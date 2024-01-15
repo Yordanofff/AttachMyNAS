@@ -57,29 +57,27 @@ class Tray:
             inner_menu_for_each_section = [self.create_menu_item(section_name, i) for i in
                                            range(num_shares_for_section)]
 
-            inner_menu_for_each_section.insert(0, pystray.MenuItem("Mount All",
-                                                                   lambda Icon, item: Icon.notify(
-                                                                       self.my_smb.mount_all_smb(section_name)),
-                                                                   enabled=self.is_config))
+            inner_menu_for_each_section.insert(
+                0, pystray.MenuItem("Mount All",
+                                    lambda Icon, item: Icon.notify(self.my_smb.mount_all_smb(section_name)),
+                                    enabled=self.my_config.is_data_entered_for_section(section_name)))
             inner_menu_for_each_section.insert(1, pystray.Menu.SEPARATOR)
 
             inner_menu_for_each_section.append(pystray.Menu.SEPARATOR)
             current_section_ip = self.my_config.get_ip_for_section(section_name)
-            inner_menu_for_each_section.append(pystray.MenuItem("Unmount All",
-                                                                lambda Icon, item: Icon.notify(
-                                                                    self.my_smb.unmount_all_smb_for_ip(
-                                                                        current_section_ip)),
-                                                                enabled=self.is_config))
+            inner_menu_for_each_section.append(
+                pystray.MenuItem("Unmount All",
+                                 lambda Icon, item: Icon.notify(self.my_smb.unmount_all_smb_for_ip(current_section_ip)),
+                                 enabled=self.my_config.is_ip_entered_for_section(section_name)))
 
             section_menu = pystray.Menu(*inner_menu_for_each_section)
             sections_menu_items.append(pystray.MenuItem(section_name, section_menu))
 
         return pystray.Menu(
             pystray.MenuItem("Unmount All [PC]", lambda Icon, item: Icon.notify(
-                self.my_smb.unmount_every_connection_not_only_the_ones_in_conf()),
-                             enabled=self.is_config),
-            pystray.MenuItem("Unmount All [config]", lambda Icon, item: Icon.notify(self.my_smb.unmount_all_smb()),
-                             enabled=self.is_config),
+                self.my_smb.unmount_every_connection_not_only_the_ones_in_conf()), enabled=True),
+            pystray.MenuItem("Unmount All [config]",
+                             lambda Icon, item: Icon.notify(self.my_smb.unmount_all_smb()), enabled=True),
             pystray.Menu.SEPARATOR,
             *sections_menu_items,
             pystray.Menu.SEPARATOR,
@@ -92,13 +90,14 @@ class Tray:
 
     # Helper function to create menu item
     def create_menu_item(self, section_name, i):
-        return pystray.MenuItem(f"Mount {self.my_config.get_shares_for_section(section_name)[i]}",
-                                functools.partial(self.notify_mount, section_name, i))
+        share_name = self.my_config.get_shares_for_section(section_name)[i]
+        return pystray.MenuItem(f"Mount {share_name}",
+                                functools.partial(self.notify_mount, section_name, i),
+                                enabled=self.my_config.is_data_entered_for_section(section_name))
 
     # Helper function to notify about mount
     def notify_mount(self, section_name, i, Icon, item):
         Icon.notify(self.my_smb.mount_smb_section(section_name, i))
-
 
     # Working loop over one section
     # @property

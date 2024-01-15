@@ -108,14 +108,18 @@ class Config:
             conf = configparser.ConfigParser()
             conf.read(self.config_file)
 
-            if not (conf['DEFAULT'].get('host_ip')):
-                self.logger.error(f"Error: IP address of the host_ip - not in the config file.")
-                return False
+            # if not (conf['DEFAULT'].get('host_ip')):
+            #     self.logger.error(f"Error: IP address of the host_ip - not in the config file.")
+            #     return False
 
             if self.get_num_sections_without_default == 0:
-                self.logger.error('No categories in the config file.')
+                self.logger.error('No sections/categories in the config file.')
                 return False
 
+            all_sections = self.get_all_section_names()
+            for section in all_sections:
+                if not self.is_data_entered_for_section(section):
+                    self.logger.critical(self.get_missing_data_for_section(section))
             # all_fields_in = True
             # for field in ['user', 'pass']:
             #     if not (conf['SSH'].get(field)):
@@ -133,6 +137,34 @@ class Config:
 
     def get_num_sections_without_default(self) -> int:
         return len(self.get_all_section_names())
+
+    def _get_is_data_entered_for_section_and_missing_fields(self, section_name: str) -> tuple[bool, list[str]]:
+        all_data_entered = True
+        error_msgs = []
+        if not (self.get_ip_for_section(section_name)):
+            all_data_entered = False
+            error_msgs.append("ip")
+        if not (self.get_username_for_section(section_name)):
+            all_data_entered = False
+            error_msgs.append("username")
+        if not (self.get_password_for_section(section_name)):
+            all_data_entered = False
+            error_msgs.append("password")
+        if len(self.get_shares_for_section(section_name)) == 0:
+            all_data_entered = False
+            error_msgs.append("shares")
+        return all_data_entered, error_msgs
+
+    def is_data_entered_for_section(self, section_name: str) -> bool:
+        return self._get_is_data_entered_for_section_and_missing_fields(section_name)[0]
+
+    def get_missing_data_for_section(self, section_name: str) -> str:
+        missing_data = self._get_is_data_entered_for_section_and_missing_fields(section_name)[1]
+        msg = f"Missing data for [{section_name}]:\n"
+        for row in missing_data:
+            row = f" - {row}\n"
+            msg += row
+        return msg
 
     def is_username_password_filled_in_section(self, section):
         if section not in self.get_all_section_names():
@@ -153,6 +185,11 @@ class Config:
 
     def get_ip_for_section(self, section: str) -> str:
         return self.get_value_for_section('ip', section)
+
+    def is_ip_entered_for_section(self, section: str) -> bool:
+        if self.get_ip_for_section(section):
+            return True
+        return False
 
     def get_value_for_section(self, key_to_find: str, section: str) -> str:
         section_items: dict = (dict(self.config.items(section)))
