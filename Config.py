@@ -160,13 +160,36 @@ class Config:
 
     def get_missing_data_for_section(self, section_name: str) -> str:
         missing_data = self._get_is_data_entered_for_section_and_missing_fields(section_name)[1]
-        msg = f"Missing data for [{section_name}]:\n"
-        for row in missing_data:
-            row = f" - {row}\n"
-            msg += row
-        return msg
+        if missing_data:
+            msg = f"Missing data for [{section_name}]:\n"
+            for row in missing_data:
+                row = f" - {row}\n"
+                msg += row
+            return msg
+        return f"All data entered: {self.get_all_data_for_section(section_name)}"
 
-    def is_username_password_filled_in_section(self, section):
+    def get_all_data_for_section(self, section: str) -> dict:
+        ip = self.get_ip_for_section(section)
+        name = self.get_username_for_section(section)
+        pw = self.get_password_for_section(section)
+        shares = self.get_shares_for_section(section)
+        return {'section': section, 'ip': ip, 'username': name, 'password': pw, 'shares': shares}
+
+    def get_all_data_for_section_for_notification(self, section: str) -> str:
+        all_data = self.get_all_data_for_section(section)
+        result = ''
+        for k, v in all_data.items():
+            if isinstance(v, list):
+                # Convert the shares list to comma separated values
+                v = self.convert_list_to_str(v)
+            result += f"{k}: {v}\n"
+        return result
+
+    @staticmethod
+    def convert_list_to_str(list_to_convert):
+        return f"[{', '.join(list_to_convert)}]"
+
+    def is_username_password_filled_in_section(self, section: str):
         if section not in self.get_all_section_names():
             raise KeyError(f"Section '{section}' not found in the configuration.")
         if self.get_username_for_section(section) and self.get_password_for_section(section):
