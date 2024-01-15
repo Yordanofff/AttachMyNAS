@@ -8,7 +8,7 @@ class Windows:
         self.logger = MyLogger("WINDOWS")
         self.config_file = config_file_name
 
-    def edit_config_file(self, log_differences: bool = True) -> bool:
+    def is_edit_config_file(self, log_differences: bool = True) -> bool:
         # Read the file contents before editing
         with open(self.config_file, 'r') as file:
             original_content = file.read()
