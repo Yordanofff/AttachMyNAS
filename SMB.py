@@ -58,8 +58,18 @@ class SMB:
         username = self.my_conf.get_username_for_section(section_name)
         password = self.my_conf.get_password_for_section(section_name)
         share_name = self.my_conf.get_shares_for_section(section_name)[share_name_position]
+        is_mounted = self.is_already_mounted(ip, share_name)
+        if is_mounted[0]:
+            return f"\\{ip}\\{share_name} - already mounted at {is_mounted[1]}"
         return self.mount_smb(ip, username, password, share_name)
         # TODO - letter
+
+    def is_already_mounted(self, ip, share) -> tuple[bool, str]:
+        all_mounts = self.get_all_mounted_letters_for_ip_dict()
+        for mount in all_mounts:
+            if mount['ip'] == ip and mount['share'] == share:
+                return True, mount['letter']
+        return False, ''
 
     def mount_all_smb(self, section_name: str):
         all_shares_names_count = len(self.my_conf.get_shares_for_section(section_name))
@@ -215,3 +225,23 @@ class SMB:
                         mounted_letters.append(letter)
 
         return mounted_letters
+
+    @staticmethod
+    def get_all_mounted_letters_for_ip_dict() -> list[dict]:
+        mount_smb_cmd = f'net use'
+        process = subprocess.Popen(mount_smb_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, _ = process.communicate()
+
+        rows = stdout.decode('utf-8').split('\r\n')
+        ignored_start_strings = ['New connections', 'Status', '-------', 'The command']
+        data = []
+        for row in rows:
+            if row and (not any(row.startswith(prefix) for prefix in ignored_start_strings)):
+                letter = ' '
+                path = row.split('\\\\')[1].split()[0].strip()
+                ip = path.split('\\')[0]
+                share = path.split('\\')[1]
+                if ":" in row:
+                    letter = row.split(':')[0].split()[1].strip()
+                data.append({'letter': letter, 'ip': ip, 'share': share})
+        return data
