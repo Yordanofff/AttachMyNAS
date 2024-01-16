@@ -2,11 +2,9 @@ import os
 import configparser
 from Logger import MyLogger
 
-initial_script_conf_file_name = "app.conf"
-
 
 class Config:
-    def __init__(self, config_file_name='app.conf'):
+    def __init__(self, config_file_name):
         self.logger = MyLogger("Config")
 
         self.config_file = config_file_name
@@ -17,12 +15,6 @@ class Config:
         # Read values from the configuration file and assign them to instance variables
         self.config = configparser.ConfigParser()
         self.config.read(self.config_file)
-
-        self.root_folder = os.path.dirname(os.path.abspath(__file__))
-
-        self.initial_script_conf_file_name = initial_script_conf_file_name
-        if "_internal" in self.root_folder:
-            self.initial_script_conf_file_name = os.path.join("_internal", self.initial_script_conf_file_name)
 
     def get_all_section_names(self) -> list[str]:
         return [i for i in self.config.sections()]

@@ -7,10 +7,10 @@ from Logger import MyLogger
 
 
 class SMB:
-    def __init__(self, config_file_name='App.conf'):
+    def __init__(self, config_file_name):
         self.logger = MyLogger("SMB")
         self.config_file = config_file_name
-        self.my_conf = Config()
+        self.my_conf = Config(self.config_file)
         config = configparser.ConfigParser()
         config.read(self.config_file)
 

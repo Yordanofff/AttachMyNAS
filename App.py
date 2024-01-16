@@ -9,21 +9,14 @@ import PIL.Image
 from SMB import SMB
 from Windows import Windows
 from Logger import MyLogger
-from Config import Config, initial_script_conf_file_name
+from Config import Config
 
 
 class Tray:
     def __init__(self):
-        # pyinstaller --clean -y --add-data="App.conf;." --add-data="logo.png;." --noconsole App.py
-        # pyinstaller --clean -y --add-data="App.conf;." --add-data="logo.png;." --hidden-import App.py --noconsole App.py
-
         self.APP_NAME = "AttachMyNAS"
 
         self.root_folder = os.path.dirname(os.path.abspath(__file__))
-
-        self.RPI_CONFIG_FILENAME = initial_script_conf_file_name
-        if "_internal" in self.root_folder:
-            self.RPI_CONFIG_FILENAME = os.path.join("_internal", self.RPI_CONFIG_FILENAME)
 
         self.script_file_path = os.path.abspath(__file__)  # path to App.py
         self.logo_path = os.path.join(self.root_folder, "logo.png")
