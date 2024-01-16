@@ -13,7 +13,6 @@ class Config:
         if not os.path.isfile(self.config_file):
             msg = f"The file '{self.config_file}' does not exist."
             self.logger.critical(msg)
-            # TODO - create default file?
 
         # Read values from the configuration file and assign them to instance variables
         self.config = configparser.ConfigParser()
@@ -55,9 +54,10 @@ class Config:
     def get_all_data_for_section(self, section: str) -> dict:
         ip = self.get_ip_for_section(section)
         name = self.get_username_for_section(section)
-        pw = self.get_password_for_section(section)
         shares = self.get_shares_for_section(section)
-        return {'section': section, 'ip': ip, 'username': name, 'password': pw, 'shares': shares}
+        preferred_letters = self.get_preferred_letters_for_section(section)
+        shares_for_notifications = self.get_formatted_letter_share_for_notification(shares, preferred_letters)
+        return {f'IP': f"{ip} - [{section}]", 'Username': name, 'Shares': shares_for_notifications}
 
     def get_all_data_for_section_for_notification(self, section: str) -> str:
         all_data = self.get_all_data_for_section(section)
@@ -97,5 +97,13 @@ class Config:
         return section_items[key_to_find].split('#')[0].strip() if key_to_find in section_items else ''
 
     @staticmethod
-    def convert_list_to_str(list_to_convert):
+    def convert_list_to_str(list_to_convert: list) -> str:
         return f"[{', '.join(list_to_convert)}]"
+
+    @staticmethod
+    def get_formatted_letter_share_for_notification(shares: list[str], letters: list[str]):
+        result = []
+        for i, share in enumerate(shares):
+            letter = letters[i] if i < len(letters) else 'None'
+            result.append(f"[{letter}]: {share}")
+        return ', '.join(result)

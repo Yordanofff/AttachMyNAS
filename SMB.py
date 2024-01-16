@@ -56,7 +56,7 @@ class SMB:
 
         return msg[:self.MAX_NUMBER_OF_CHARACTERS_IN_TRAY_NOTIFICATION]
 
-    def mount_smb_section(self, section_name: str, share_name_position: int):
+    def mount_smb_section(self, section_name: str, share_name_position: int) -> str:
         ip = self.my_conf.get_ip_for_section(section_name)
         username = self.my_conf.get_username_for_section(section_name)
         password = self.my_conf.get_password_for_section(section_name)
@@ -65,24 +65,28 @@ class SMB:
 
         return self.mount_smb(ip, username, password, share_name, letter)
 
-    def is_drive_letter_free(self, letter: str):
+    def is_drive_letter_free(self, letter: str) -> bool:
         if letter in self.get_free_drive_letters():
             return True
         return False
 
-    def get_chosen_letter_for_section(self, section_name: str, position: int):
-        """ This will return the letter at the correct position if that letter exists and will return a 'free' letter
-        if there's no 'letter' in the section, or there's no letter at this position."""
-
+    def get_chosen_letter_for_section(self, section_name: str, position: int) -> str:
+        """
+        :return: The preferred letter if that letter is available OR a free letter if not
+        """
         preferred_letter = self.get_preferred_letter_for_section_if_one(section_name, position)
         if preferred_letter:
             return preferred_letter
         return self.get_last_free_letter()
 
     def get_preferred_letter_for_section_if_one(self, section_name: str, position: int) -> str | None:
-        """ Use this is the tray drawer - to indicate that there is a preferred letter for that mount.
-            :returns the letter or if there isn't.
         """
+        Use this is the tray drawer - to indicate that there is a preferred letter for that mount.
+        :param section_name: section name from the config file
+        :param position: The position of the item that is needed: J,K,L - position 0 = J
+        :return: the letter or None if there isn't.
+        """
+
         letters_for_section = self.my_conf.get_preferred_letters_for_section(section_name)
         try:
             letter = letters_for_section[position]
@@ -93,13 +97,20 @@ class SMB:
         return None
 
     def is_already_mounted(self, ip, share) -> tuple[bool, str]:
+        """
+        Checks if that exact share is already mounted.
+        """
         all_mounts = self.get_all_mounted_letters_for_ip_dict()
         for mount in all_mounts:
             if mount['ip'] == ip and mount['share'] == share:
                 return True, mount['letter']
         return False, ''
 
-    def mount_all_smb(self, section_name: str):
+    def mount_all_smb(self, section_name: str) -> str:
+        """
+        Mounts all shares from the selected section
+        :return: Notification msg
+        """
         all_shares_names_count = len(self.my_conf.get_shares_for_section(section_name))
         failed_mounts = []
         for i in range(all_shares_names_count):
@@ -138,7 +149,7 @@ class SMB:
             self.logger.error(msg)
         return msg[:self.MAX_NUMBER_OF_CHARACTERS_IN_TRAY_NOTIFICATION]
 
-    def get_free_drive_letters(self):
+    def get_free_drive_letters(self) -> list[str]:
         used_letters = self._get_used_drive_letters()
         all_letters = list(string.ascii_uppercase)
         diff = set(used_letters).symmetric_difference(set(all_letters))
@@ -146,7 +157,7 @@ class SMB:
         diff.remove('B')
         return list(sorted(diff))
 
-    def get_last_free_letter(self):
+    def get_last_free_letter(self) -> str:
         return self.get_free_drive_letters()[-1]
 
     def unmount_all_smb_for_ip(self, host_ip: str) -> str:
@@ -161,7 +172,7 @@ class SMB:
         else:
             return f"Success. All {len(all_mounted_letters_on_server)} drives unmounted successfully."
 
-    def unmount_all_smb(self):
+    def unmount_all_smb(self) -> str:
         all_ip = self.get_all_ip_from_all_sections()
         failed_to_unmount = []
         for ip in all_ip:
@@ -173,7 +184,11 @@ class SMB:
         else:
             return f"Success. All connections unmounted successfully."
 
-    def unmount_every_connection_not_only_the_ones_in_conf(self):
+    def unmount_every_connection_not_only_the_ones_in_conf(self) -> str:
+        """
+        Removes all SMB network connections on that machine. Nothing to do with this app. ALL.
+        :return: Notification msg
+        """
         self.logger.info(f"Attempting to unmount all connections")
         cmd = "net use * /delete /yes"
         process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -198,7 +213,10 @@ class SMB:
         return list(set(self.my_conf.get_all_sections_ip()))
 
     @staticmethod
-    def _get_used_drive_letters():
+    def _get_used_drive_letters() -> list[str]:
+        """
+        :return: list of all used drive letters - local + network drives
+        """
         drive_bitmask = ctypes.windll.kernel32.GetLogicalDrives()
         drive_letters = [chr(i + ord('A')) for i in range(26) if drive_bitmask & (1 << i)]
         return drive_letters

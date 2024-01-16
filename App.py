@@ -14,8 +14,8 @@ from Config import Config, initial_script_conf_file_name
 
 class Tray:
     def __init__(self):
-        # pyinstaller --clean -y --add-data="App.conf;." --add-data="Anycubiclogo.jpg;." --add-data="initial_script.sh;." --noconsole TrayApp.py
-        # pyinstaller --clean -y --add-data="App.conf;." --add-data="Anycubiclogo.jpg;." --add-data="initial_script.sh;." --hidden-import App.py --noconsole TrayApp.py
+        # pyinstaller --clean -y --add-data="App.conf;." --add-data="logo.png;." --noconsole App.py
+        # pyinstaller --clean -y --add-data="App.conf;." --add-data="logo.png;." --hidden-import App.py --noconsole App.py
 
         self.APP_NAME = "AttachMyNAS"
 
@@ -25,8 +25,8 @@ class Tray:
         if "_internal" in self.root_folder:
             self.RPI_CONFIG_FILENAME = os.path.join("_internal", self.RPI_CONFIG_FILENAME)
 
-        self.script_file_path = os.path.abspath(__file__)  # path to TrayApp.py
-        self.logo_path = os.path.join(self.root_folder, "nas.png")
+        self.script_file_path = os.path.abspath(__file__)  # path to App.py
+        self.logo_path = os.path.join(self.root_folder, "logo.png")
         self.logo = PIL.Image.open(self.logo_path)
         self.activate_script_path = os.path.join(self.root_folder, "venv", "Scripts", "activate.bat")
 
@@ -42,7 +42,7 @@ class Tray:
         self.icon = icon(self.APP_NAME, self.logo, menu=self.menu, title=self.APP_NAME)
 
     @property
-    def menu(self):
+    def menu(self) -> menu:
         # TODO: menu won't show if no shares in conf file. Print warning when app starts if none.
         # Create the part of the menu that will have all sections
         sections_menu_items = self.get_sections_menu_items()
@@ -63,7 +63,7 @@ class Tray:
             item("Exit", self.close_app)
         )
 
-    def get_sections_menu_items(self):
+    def get_sections_menu_items(self) -> list[item]:
         all_section_names = self.my_config.get_all_section_names()
         sections_menu_items = []
         for section_name in all_section_names:
@@ -92,27 +92,27 @@ class Tray:
             sections_menu_items.append(item(section_name, section_menu))
         return sections_menu_items
 
-    def get_unmount_all_info(self, section_name, icon, item):
+    def get_unmount_all_info(self, section_name: str, icon, item) -> None:
         current_section_ip = self.my_config.get_ip_for_section(section_name)
         icon.notify(self.my_smb.unmount_all_smb_for_ip(current_section_ip))
 
-    def get_mount_all_info(self, section_name, icon, item):
+    def get_mount_all_info(self, section_name: str, icon, item) -> None:
         icon.notify(self.my_smb.mount_all_smb(section_name))
 
-    def get_info_action(self, section_name, icon, item):
+    def get_info_action(self, section_name: str, icon, item) -> None:
         icon.notify(self.my_config.get_all_data_for_section_for_notification(section_name))
 
     # Helper function to create menu item
-    def create_menu_item(self, section_name, i):
-        share_name = self.my_config.get_shares_for_section(section_name)[i]
-        preferred_letter = self.my_smb.get_preferred_letter_for_section_if_one(section_name, i)
+    def create_menu_item(self, section_name: str, position: int) -> item:
+        share_name = self.my_config.get_shares_for_section(section_name)[position]
+        preferred_letter = self.my_smb.get_preferred_letter_for_section_if_one(section_name, position)
         return item(f"Mount {share_name} [{preferred_letter}]",
-                    functools.partial(self.notify_mount, section_name, i),
+                    functools.partial(self.notify_mount, section_name, position),
                     enabled=self.my_config.is_data_entered_for_section(section_name))
 
     # Helper function to notify about mount
-    def notify_mount(self, section_name, i, icon, item):
-        icon.notify(self.my_smb.mount_smb_section(section_name, i))
+    def notify_mount(self, section_name: str, position: int, icon, item) -> None:
+        icon.notify(self.my_smb.mount_smb_section(section_name, position))
 
     def log_init(self) -> None:
         self.logger.info("*" * 80)
@@ -137,7 +137,7 @@ class Tray:
         if self.my_win.is_edit_config_file():
             self.restart_app()
 
-    def restart_app(self):
+    def restart_app(self) -> None:
         self.close_app()
         subprocess.Popen([sys.executable] + sys.argv, creationflags=subprocess.CREATE_NO_WINDOW)
 
