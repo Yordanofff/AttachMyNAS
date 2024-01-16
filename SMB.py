@@ -233,7 +233,7 @@ class SMB:
         stdout, _ = process.communicate()
 
         rows = stdout.decode('utf-8').split('\r\n')
-        ignored_start_strings = ['New connections', 'Status', '-------', 'The command']
+        ignored_start_strings = ['New connections', 'Status', '-------', 'The command', 'There are no']
         data = []
         for row in rows:
             if row and (not any(row.startswith(prefix) for prefix in ignored_start_strings)):
