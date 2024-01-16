@@ -105,7 +105,8 @@ class Tray:
     # Helper function to create menu item
     def create_menu_item(self, section_name, i):
         share_name = self.my_config.get_shares_for_section(section_name)[i]
-        return item(f"Mount {share_name}",
+        preferred_letter = self.my_smb.get_preferred_letter_for_section_if_one(section_name, i)
+        return item(f"Mount {share_name} [{preferred_letter}]",
                     functools.partial(self.notify_mount, section_name, i),
                     enabled=self.my_config.is_data_entered_for_section(section_name))
 

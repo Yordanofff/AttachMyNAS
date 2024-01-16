@@ -16,19 +16,22 @@ class SMB:
 
         self.MAX_NUMBER_OF_CHARACTERS_IN_TRAY_NOTIFICATION = 256
 
-    # TODO: Check if share is already mounted
-
-    def mount_smb(self, host_ip: str, username: str, password: str, share_name: str, letter: str = None) -> str:
+    def mount_smb(self, host_ip: str, username: str, password: str, share_name: str, letter: str) -> str:
         """
         # This method will unmount a letter if is already mounted and will re-mount it by execute something like:
         # net use p: \\192.168.1.100\downloads /user: my_username my_password
         """
-        if letter is None:
-            letter = self.get_last_free_letter()
 
         self.logger.info(
             f"Attempting to mount {host_ip}\{share_name} using user: {username} to {letter.upper()}: drive")
-        if self.is_drive_mounted(letter):
+
+        is_mounted = self.is_already_mounted(host_ip, share_name)
+        if is_mounted[0]:
+            return f"\\{host_ip}\\{share_name} - already mounted at {is_mounted[1]}"
+
+        if not self.is_drive_letter_free(letter):
+            # It's possible that the preferred letter is already mounted
+            # Will not mount at another letter - because it might be important to be the correct one.
             msg = f"Drive letter {letter.upper()} - already mounted."
             self.logger.info(msg)
             return msg
@@ -58,11 +61,36 @@ class SMB:
         username = self.my_conf.get_username_for_section(section_name)
         password = self.my_conf.get_password_for_section(section_name)
         share_name = self.my_conf.get_shares_for_section(section_name)[share_name_position]
-        is_mounted = self.is_already_mounted(ip, share_name)
-        if is_mounted[0]:
-            return f"\\{ip}\\{share_name} - already mounted at {is_mounted[1]}"
-        return self.mount_smb(ip, username, password, share_name)
-        # TODO - letter
+        letter = self.get_chosen_letter_for_section(section_name, share_name_position)
+
+        return self.mount_smb(ip, username, password, share_name, letter)
+
+    def is_drive_letter_free(self, letter: str):
+        if letter in self.get_free_drive_letters():
+            return True
+        return False
+
+    def get_chosen_letter_for_section(self, section_name: str, position: int):
+        """ This will return the letter at the correct position if that letter exists and will return a 'free' letter
+        if there's no 'letter' in the section, or there's no letter at this position."""
+
+        preferred_letter = self.get_preferred_letter_for_section_if_one(section_name, position)
+        if preferred_letter:
+            return preferred_letter
+        return self.get_last_free_letter()
+
+    def get_preferred_letter_for_section_if_one(self, section_name: str, position: int) -> str | None:
+        """ Use this is the tray drawer - to indicate that there is a preferred letter for that mount.
+            :returns the letter or if there isn't.
+        """
+        letters_for_section = self.my_conf.get_preferred_letters_for_section(section_name)
+        try:
+            letter = letters_for_section[position]
+            if letter:
+                return letter
+        except:
+            pass
+        return None
 
     def is_already_mounted(self, ip, share) -> tuple[bool, str]:
         all_mounts = self.get_all_mounted_letters_for_ip_dict()
@@ -86,7 +114,7 @@ class SMB:
     def unmount_smb_letter(self, letter: str) -> str:
         self.logger.info(f"Attempting to unmount drive {letter.upper()}:")
 
-        if not self.is_drive_mounted(letter):
+        if self.is_drive_letter_free(letter):
             msg = f"Drive letter {letter.upper()} - not mounted."
             self.logger.warning(msg)
             return msg
@@ -109,32 +137,6 @@ class SMB:
             msg = f"stdout: {stdout} \n stderr: {stderr}"
             self.logger.error(msg)
         return msg[:self.MAX_NUMBER_OF_CHARACTERS_IN_TRAY_NOTIFICATION]
-
-    def is_drive_mounted(self, letter: str) -> bool:
-        """
-        Run the 'net use' command and capture its output. Then checks if Letter is in it.
-        """
-        self.logger.info(f"Checking if drive letter {letter}: is already mounted.")
-        try:
-            process = subprocess.Popen(f"net use", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            stdout, stderr = process.communicate()
-
-            stdout_decoded = stdout.decode('utf-8')
-            stderr_decoded = stderr.decode('utf-8')
-
-            if stderr_decoded:
-                self.logger.error(stderr)
-
-            result: bool = f"{letter.upper()}:" in stdout_decoded.upper()
-            if result:
-                self.logger.info(f"Drive letter {letter}: already mounted.")
-            else:
-                self.logger.info(f"Drive letter {letter}: not mounted.")
-            return result
-        except subprocess.CalledProcessError as e:
-            # An error occurred, and an exception is automatically raised
-            self.logger.critical(f"Something went wrong: {e}")
-            raise e
 
     def get_free_drive_letters(self):
         used_letters = self._get_used_drive_letters()
