@@ -76,8 +76,13 @@ class Config:
         return self.get_value_for_section('password', section)
 
     def get_shares_for_section(self, section: str) -> list[str]:
-        shares_str_no_comment = (self.get_value_for_section('shares', section)).split('#')[0]
-        return [i.strip() for i in shares_str_no_comment.split(",")] if shares_str_no_comment else []
+        shares_str = self.get_value_for_section('shares', section)
+        return [i.strip() for i in shares_str.split(",")] if shares_str else []
+
+    def get_preferred_letters_for_section(self, section: str) -> list[str]:
+        """ If 'letters' row doesn't exist in the section - it will return [] """
+        letters_str = self.get_value_for_section('letters', section)
+        return [i.strip() for i in letters_str.split(',')] if letters_str else []
 
     def get_ip_for_section(self, section: str) -> str:
         return self.get_value_for_section('ip', section)
@@ -89,7 +94,7 @@ class Config:
 
     def get_value_for_section(self, key_to_find: str, section: str) -> str:
         section_items: dict = (dict(self.config.items(section)))
-        return section_items[key_to_find].strip() if key_to_find in section_items else ''
+        return section_items[key_to_find].split('#')[0].strip() if key_to_find in section_items else ''
 
     @staticmethod
     def convert_list_to_str(list_to_convert):
